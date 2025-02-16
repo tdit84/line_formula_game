@@ -43,6 +43,11 @@
       margin-top: 15px;
       cursor: pointer;
     }
+    #score {
+      font-size: 1.2em;
+      margin-top: 10px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -52,6 +57,7 @@
     Use the sliders below to set the slope (m) and the y-intercept (b).
   </p>
   <canvas id="gameCanvas" width="500" height="500"></canvas>
+  <div id="score">Score: </div>
 
   <div class="slider-container">
     <label for="slopeSlider">Slope (m): <span id="slopeValue">0</span></label><br>
@@ -74,6 +80,7 @@
     const interceptValueSpan = document.getElementById('interceptValue');
     const messageDiv = document.getElementById('message');
     const newTargetButton = document.getElementById('newTargetButton');
+    const scoreDiv = document.getElementById('score');
 
     // Coordinate system parameters
     const canvasWidth = canvas.width;
@@ -82,8 +89,10 @@
     const originY = canvasHeight / 2;
     const scale = 20; // pixels per unit
 
-    // Variables to hold the target line parameters
+    // Game state variables
     let targetSlope, targetIntercept;
+    let pointTotal = 0;
+    let gameMatched = false;
 
     // Generate a random target line (slope between -2 and 2, intercept between -5 and 5)
     function generateTargetLine() {
@@ -96,7 +105,7 @@
       ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     }
 
-    // Draw coordinate axes and a light grid
+    // Draw coordinate grid, axes, and axis numbers
     function drawAxes() {
       // Draw grid lines
       ctx.strokeStyle = "#ddd";
@@ -117,16 +126,37 @@
       // Draw x and y axes
       ctx.strokeStyle = "#000";
       ctx.lineWidth = 1;
-      // X axis
+      // X-axis
       ctx.beginPath();
       ctx.moveTo(0, originY);
       ctx.lineTo(canvasWidth, originY);
       ctx.stroke();
-      // Y axis
+      // Y-axis
       ctx.beginPath();
       ctx.moveTo(originX, 0);
       ctx.lineTo(originX, canvasHeight);
       ctx.stroke();
+
+      // Draw axis numbers
+      ctx.fillStyle = "black";
+      ctx.font = "10px Arial";
+
+      // X-axis numbers
+      let xMin = -Math.floor(originX / scale);
+      let xMax = Math.floor((canvasWidth - originX) / scale);
+      for (let x = xMin; x <= xMax; x++) {
+        let pos = convertToCanvasCoords(x, 0);
+        ctx.fillText(x, pos.x - 3, originY + 12);
+      }
+
+      // Y-axis numbers
+      let yMin = -Math.floor(originY / scale);
+      let yMax = Math.floor(originY / scale);
+      for (let y = yMin; y <= yMax; y++) {
+        if (y === 0) continue; // skip the origin
+        let pos = convertToCanvasCoords(0, y);
+        ctx.fillText(y, originX + 5, pos.y + 3);
+      }
     }
 
     // Convert math coordinates (x, y) to canvas coordinates
@@ -167,6 +197,11 @@
       ctx.setLineDash([]);
     }
 
+    // Update score display
+    function updateScore() {
+      scoreDiv.textContent = "Score: " + "⭐".repeat(pointTotal);
+    }
+
     // Update the canvas and game status
     function update() {
       // Get the player's current slope and intercept
@@ -185,9 +220,18 @@
       // Check if the player's line is close enough to the target line
       const slopeDiff = Math.abs(playerSlope - targetSlope);
       const interceptDiff = Math.abs(playerIntercept - targetIntercept);
-      if (slopeDiff < 0.2 && interceptDiff < 0.5) {
+      if (!gameMatched && slopeDiff < 0.2 && interceptDiff < 0.5) {
+        gameMatched = true;
         messageDiv.textContent = "Great job! You matched the target line!";
-      } else {
+        pointTotal++;
+        updateScore();
+        // Restart game with a new target after 1 second
+        setTimeout(function(){
+          generateTargetLine();
+          gameMatched = false;
+          update();
+        }, 1000);
+      } else if (!gameMatched) {
         messageDiv.textContent = "Keep trying to match the target line!";
       }
     }
@@ -197,11 +241,13 @@
     interceptSlider.addEventListener('input', update);
     newTargetButton.addEventListener('click', () => {
       generateTargetLine();
+      gameMatched = false;
       update();
     });
 
     // Initialize the game
     generateTargetLine();
+    updateScore();
     update();
   </script>
 </body>
